@@ -78,12 +78,6 @@ export default function Login() {
               Ingresar
             </button>
 
-            <p className="text-xs text-neutral-500 text-center mt-2">
-              Admin: <span className="text-neutral-300">admin@aj.com</span> / <span className="text-neutral-300">admin</span>
-            </p>
-            <p className="text-xs text-neutral-500 text-center mt-2">
-              <span className="text-neutral-300">Solo para test luego los datos de admin no aparece</span>
-            </p>
             <p className="text-xs text-neutral-500 text-center mt-3">
               ¿No tenés una cuenta?{' '}
               <span
