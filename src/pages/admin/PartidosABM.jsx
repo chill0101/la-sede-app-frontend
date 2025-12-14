@@ -7,12 +7,13 @@ import PageHeader from '../../components/layout/PageHeader'
 import Button from '../../components/ui/Button'
 
 export default function PartidosABM() {
-  const { state, setState } = useData()
+  const { state, admin } = useData()
   const [rival, setRival] = useState('')
   const [fechaHora, setFechaHora] = useState('')
   const [stockEntradas, setStockEntradas] = useState('')
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
+  const [loading, setLoading] = useState(false)
 
   const rivalesDisponibles = [
     'Boca Juniors',
@@ -27,32 +28,34 @@ export default function PartidosABM() {
     'Vélez Sarsfield',
   ]
 
-  const handleAgregar = (e) => {
+  const handleAgregar = async (e) => {
     e.preventDefault()
     setError(null)
     setSuccess(null)
+    setLoading(true)
 
     if (!rival || !fechaHora || !stockEntradas) {
       setError('Todos los campos son obligatorios')
+      setLoading(false)
       return
     }
 
-    const nuevoPartido = {
-      id: Date.now(),
-      rival,
-      fechaHora,
-      stockEntradas: parseInt(stockEntradas),
+    try {
+      await admin.crearPartido({
+        rival,
+        fechaHora,
+        stockEntradas: parseInt(stockEntradas),
+      })
+
+      setRival('')
+      setFechaHora('')
+      setStockEntradas('')
+      setSuccess('Partido agregado con éxito ✅')
+    } catch (err) {
+      setError(err.message || 'Error al crear partido')
+    } finally {
+      setLoading(false)
     }
-
-    setState((prev) => ({
-      ...prev,
-      partidos: [...prev.partidos, nuevoPartido],
-    }))
-
-    setRival('')
-    setFechaHora('')
-    setStockEntradas('')
-    setSuccess('Partido agregado con éxito ✅')
   }
 
   const headers = ['Rival', 'Fecha y Hora', 'Stock de Entradas']
@@ -115,8 +118,8 @@ export default function PartidosABM() {
           </div>
         </div>
 
-        <Button type="submit" className="mt-3">
-          Agregar Partido
+        <Button type="submit" className="mt-3" disabled={loading}>
+          {loading ? 'Agregando...' : 'Agregar Partido'}
         </Button>
       </form>
 

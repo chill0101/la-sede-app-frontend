@@ -7,22 +7,27 @@ import Button from '../../components/ui/Button'
 
 export default function Usuarios() {
   const { user } = useAuth()
-  const { state, setState } = useData()
+  const { state, admin } = useData()
   const [editando, setEditando] = useState(null)
   const [form, setForm] = useState({ nombre: '', apellido: '', email: '', rol: '', activo: true })
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
 
   // --- FUNCIONES ---
 
-  const toggleActivo = (id) => {
-    setState(prev => ({
-      ...prev,
-      usuarios: prev.usuarios.map(u =>
-        u.id === id ? { ...u, activo: !u.activo } : u
-      ),
-    }))
+  const toggleActivo = async (id) => {
+    setError(null)
+    setLoading(true)
+    try {
+      await admin.toggleActivo(id)
+    } catch (err) {
+      setError(err.message || 'Error al cambiar estado del usuario')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const eliminarUsuario = (id) => {
+  const eliminarUsuario = async (id) => {
     const target = state.usuarios.find(u => u.id === id)
     // 🔒 No permitir eliminarse a sí mismo
     if (target?.email === user.email) {
@@ -31,10 +36,14 @@ export default function Usuarios() {
     }
 
     if (window.confirm(`¿Seguro que deseas eliminar a ${target?.nombre}?`)) {
-      setState(prev => ({
-        ...prev,
-        usuarios: prev.usuarios.filter(u => u.id !== id),
-      }))
+      setError(null)
+      setLoading(true)
+      try {
+        await admin.eliminarUsuario(id)
+      } catch (err) {
+        setError(err.message || 'Error al eliminar usuario')
+        setLoading(false)
+      }
     }
   }
 
@@ -55,14 +64,17 @@ export default function Usuarios() {
     })
   }
 
-  const guardarEdicion = (id) => {
-    setState(prev => ({
-      ...prev,
-      usuarios: prev.usuarios.map(u =>
-        u.id === id ? { ...u, ...form } : u
-      ),
-    }))
-    setEditando(null)
+  const guardarEdicion = async (id) => {
+    setError(null)
+    setLoading(true)
+    try {
+      await admin.actualizarUsuario(id, form)
+      setEditando(null)
+    } catch (err) {
+      setError(err.message || 'Error al actualizar usuario')
+    } finally {
+      setLoading(false)
+    }
   }
 
   // --- TABLA ---
@@ -145,6 +157,16 @@ export default function Usuarios() {
   return (
     <Container>
       <h2 className="text-xl font-bold mb-4">Usuarios</h2>
+      {error && (
+        <div className="mb-4 p-3 bg-red-900/50 border border-red-700 rounded text-red-200 text-sm">
+          {error}
+        </div>
+      )}
+      {loading && (
+        <div className="mb-4 p-3 bg-blue-900/50 border border-blue-700 rounded text-blue-200 text-sm">
+          Procesando...
+        </div>
+      )}
       <Table headers={headers} rows={rows} />
     </Container>
   )

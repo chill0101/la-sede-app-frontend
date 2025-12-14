@@ -16,24 +16,42 @@ export default function ClasesABM() {
     hora: '',
     cupo: ''
   })
+  const [error, setError] = useState(null)
+  const [success, setSuccess] = useState(null)
+  const [loading, setLoading] = useState(false)
 
   const handleChange = (e) => {
     const { name, value } = e.target
     setNuevaClase(prev => ({ ...prev, [name]: value }))
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!nuevaClase.disciplina || !nuevaClase.diaSemana || !nuevaClase.hora || !nuevaClase.cupo) return
+    setError(null)
+    setSuccess(null)
+    setLoading(true)
 
-    admin.crearClase({
-      disciplina: nuevaClase.disciplina,
-      diaSemana: nuevaClase.diaSemana,
-      hora: nuevaClase.hora,
-      cupo: parseInt(nuevaClase.cupo)
-    })
+    if (!nuevaClase.disciplina || !nuevaClase.diaSemana || !nuevaClase.hora || !nuevaClase.cupo) {
+      setError('Todos los campos son obligatorios')
+      setLoading(false)
+      return
+    }
 
-    setNuevaClase({ disciplina: '', diaSemana: '', hora: '', cupo: '' })
+    try {
+      await admin.crearClase({
+        disciplina: nuevaClase.disciplina,
+        diaSemana: nuevaClase.diaSemana,
+        hora: nuevaClase.hora,
+        cupo: parseInt(nuevaClase.cupo)
+      })
+
+      setNuevaClase({ disciplina: '', diaSemana: '', hora: '', cupo: '' })
+      setSuccess('Clase creada con éxito ✅')
+    } catch (err) {
+      setError(err.message || 'Error al crear clase')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -45,6 +63,16 @@ export default function ClasesABM() {
         onSubmit={handleSubmit}
         className="bg-gray-800 p-4 rounded-xl mb-6 shadow-md grid md:grid-cols-5 gap-3"
       >
+        {error && (
+          <div className="col-span-5 p-3 bg-red-900/50 border border-red-700 rounded text-red-200 text-sm">
+            {error}
+          </div>
+        )}
+        {success && (
+          <div className="col-span-5 p-3 bg-green-900/50 border border-green-700 rounded text-green-200 text-sm">
+            {success}
+          </div>
+        )}
         <Input
           label="Disciplina"
           name="disciplina"
@@ -76,8 +104,8 @@ export default function ClasesABM() {
           placeholder="Ej: 20"
         />
         <div className="flex flex-col justify-end">
-          <Button type="submit" variant="primary">
-            Crear clase
+          <Button type="submit" variant="primary" disabled={loading}>
+            {loading ? 'Creando...' : 'Crear clase'}
           </Button>
         </div>
       </form>

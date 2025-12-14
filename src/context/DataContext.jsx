@@ -20,6 +20,7 @@ export function DataProvider({ children }) {
   })
 
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
   // Cargar datos iniciales
   useEffect(() => {
@@ -27,14 +28,40 @@ export function DataProvider({ children }) {
   }, [])
 
   const fetchInitialData = async () => {
+    setError(null)
     try {
       const res = await fetch(`${API_URL}/init`)
       if (res.ok) {
         const data = await res.json()
         setState(data)
+      } else {
+        const errorData = await res.json().catch(() => ({ error: 'Error desconocido' }))
+        console.error('Error cargando datos:', errorData)
+        setError(`Error al cargar datos: ${errorData.error || 'Error desconocido'}`)
+        // Mantener estado vacío pero no fallar completamente
+        setState({
+          usuarios: [],
+          canchas: [],
+          reservas: [],
+          clases: [],
+          partidos: [],
+          entradas: [],
+          pagos: []
+        })
       }
     } catch (error) {
-      console.error('Error cargando datos:', error)
+      console.error('Error de conexión cargando datos:', error)
+      setError('Error de conexión. Verifica que el servidor backend esté corriendo en http://localhost:3000')
+      // Si hay error de conexión, mantener arrays vacíos
+      setState({
+        usuarios: [],
+        canchas: [],
+        reservas: [],
+        clases: [],
+        partidos: [],
+        entradas: [],
+        pagos: []
+      })
     } finally {
       setLoading(false)
     }
@@ -126,18 +153,126 @@ export function DataProvider({ children }) {
     await fetchInitialData() // Refetch para actualizar stock
   }
 
-  // Admin Actions (Simplificadas)
+  // Admin Actions
   const admin = {
-    crearUsuario: async (payload) => {
-      // Implementar en backend si es necesario
-      console.warn('Crear usuario no implementado en backend aun')
+    actualizarUsuario: async (id, payload) => {
+      if (!user) throw new Error('No autenticado')
+      if (user.rol !== 'admin') throw new Error('Requiere rol de admin')
+
+      try {
+        const res = await fetch(`${API_URL}/usuarios/${id}/admin`, {
+          method: 'PUT',
+          headers: authHeaders(),
+          body: JSON.stringify(payload)
+        })
+
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({ message: 'Error al actualizar usuario' }))
+          throw new Error(errorData.message || 'Error al actualizar usuario')
+        }
+
+        const data = await res.json()
+        await fetchInitialData()
+        return data
+      } catch (error) {
+        if (error instanceof TypeError && error.message.includes('fetch')) {
+          throw new Error('Error de conexión. Verifica que el servidor esté corriendo.')
+        }
+        throw error
+      }
     },
+
+    eliminarUsuario: async (id) => {
+      if (!user) throw new Error('No autenticado')
+      if (user.rol !== 'admin') throw new Error('Requiere rol de admin')
+
+      try {
+        const res = await fetch(`${API_URL}/usuarios/${id}`, {
+          method: 'DELETE',
+          headers: authHeaders()
+        })
+
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({ message: 'Error al eliminar usuario' }))
+          throw new Error(errorData.message || 'Error al eliminar usuario')
+        }
+
+        const data = await res.json()
+        await fetchInitialData()
+        return data
+      } catch (error) {
+        if (error instanceof TypeError && error.message.includes('fetch')) {
+          throw new Error('Error de conexión. Verifica que el servidor esté corriendo.')
+        }
+        throw error
+      }
+    },
+
     toggleActivo: async (id) => {
-      // Implementar
+      if (!user) throw new Error('No autenticado')
+      if (user.rol !== 'admin') throw new Error('Requiere rol de admin')
+
+      // Obtener el usuario actual para saber su estado
+      const usuarioActual = state.usuarios.find(u => u.id === id)
+      if (!usuarioActual) throw new Error('Usuario no encontrado')
+
+      return await admin.actualizarUsuario(id, { activo: !usuarioActual.activo })
     },
+
     crearClase: async (payload) => {
-      // Implementar
+      if (!user) throw new Error('No autenticado')
+      if (user.rol !== 'admin') throw new Error('Requiere rol de admin')
+
+      try {
+        const res = await fetch(`${API_URL}/clases`, {
+          method: 'POST',
+          headers: authHeaders(),
+          body: JSON.stringify(payload)
+        })
+
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({ message: 'Error al crear clase' }))
+          throw new Error(errorData.message || 'Error al crear clase')
+        }
+
+        const data = await res.json()
+        await fetchInitialData()
+        return data
+      } catch (error) {
+        if (error instanceof TypeError && error.message.includes('fetch')) {
+          throw new Error('Error de conexión. Verifica que el servidor esté corriendo.')
+        }
+        throw error
+      }
     },
+
+    crearPartido: async (payload) => {
+      if (!user) throw new Error('No autenticado')
+      if (user.rol !== 'admin') throw new Error('Requiere rol de admin')
+
+      try {
+        const res = await fetch(`${API_URL}/partidos`, {
+          method: 'POST',
+          headers: authHeaders(),
+          body: JSON.stringify(payload)
+        })
+
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({ message: 'Error al crear partido' }))
+          throw new Error(errorData.message || 'Error al crear partido')
+        }
+
+        const data = await res.json()
+        await fetchInitialData()
+        return data
+      } catch (error) {
+        if (error instanceof TypeError && error.message.includes('fetch')) {
+          throw new Error('Error de conexión. Verifica que el servidor esté corriendo.')
+        }
+        throw error
+      }
+    },
+
     toggleEstadoCancha: async (id) => {
       const res = await fetch(`${API_URL}/canchas/${id}/toggle`, {
         method: 'PUT',
@@ -150,7 +285,9 @@ export function DataProvider({ children }) {
   const value = {
     state,
     loading,
+    error,
     setState,
+    fetchInitialData,
     pagarCuota,
     reservarCancha,
     inscribirClase,
