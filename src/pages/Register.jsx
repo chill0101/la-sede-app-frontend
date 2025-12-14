@@ -1,13 +1,14 @@
 import { useNavigate } from 'react-router-dom'
 import { useState } from 'react'
-import { useAuth } from '../context/AuthContext'
 import { useData } from '../context/DataContext'
 import Input from '../components/ui/Input'
 import Button from '../components/ui/Button'
 import Alert from '../components/ui/Alert'
 
+const API_URL = 'http://localhost:3000/api'
+
 export default function Register() {
-  const { state, setState } = useData()
+  const { fetchInitialData } = useData()
   const nav = useNavigate()
 
   const [nombre, setNombre] = useState('')
@@ -17,50 +18,56 @@ export default function Register() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
+  const [loading, setLoading] = useState(false)
 
-  const onSubmit = (e) => {
+  const onSubmit = async (e) => {
     e.preventDefault()
     setError(null)
     setSuccess(null)
+    setLoading(true)
 
     if (!nombre || !apellido || !dni || !email || !password) {
       setError('Todos los campos son obligatorios')
+      setLoading(false)
       return
     }
 
-    // verificar que el email no esté registrado
-    const existe = state.usuarios.some(u => u.email === email)
-    if (existe) {
-      setError('Este email ya está registrado')
-      return
+    try {
+      const res = await fetch(`${API_URL}/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          nombre,
+          apellido,
+          dni,
+          email,
+          password,
+        }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        setError(data.message || 'Error al registrar usuario')
+        setLoading(false)
+        return
+      }
+
+      setSuccess('Usuario registrado con éxito ✅')
+      
+      // Recargar datos iniciales para actualizar la lista de usuarios
+      if (fetchInitialData) {
+        await fetchInitialData()
+      }
+      
+      setTimeout(() => nav('/login'), 2000)
+    } catch (error) {
+      console.error('Error al registrar:', error)
+      setError('Error de conexión. Por favor, intenta nuevamente.')
+      setLoading(false)
     }
-
-    // verificar que el dni no esté registrado
-    const existeDni = state.usuarios.some(u => String(u.dni) === String(dni))
-    if (existeDni) {
-      setError('Este DNI ya está registrado')
-      return
-    }
-
-
-    const nuevoUsuario = {
-      id: Date.now(),
-      nombre,
-      apellido,
-      dni,
-      email,
-      password,
-      rol: 'user',
-      activo: true,
-    }
-
-    setState(prev => ({
-      ...prev,
-      usuarios: [...prev.usuarios, nuevoUsuario],
-    }))
-
-    setSuccess('Usuario registrado con éxito ✅')
-    setTimeout(() => nav('/login'), 2000)
   }
 
   return (
@@ -140,9 +147,11 @@ export default function Register() {
             {success && <p className="text-sm text-green-400">{success}</p>}
 
             <button
-              className="w-full mt-2 rounded-md bg-red-600 text-white font-medium px-4 py-2.5 hover:bg-red-700 transition"
+              type="submit"
+              disabled={loading}
+              className="w-full mt-2 rounded-md bg-red-600 text-white font-medium px-4 py-2.5 hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Registrarme
+              {loading ? 'Registrando...' : 'Registrarme'}
             </button>
 
             <p className="text-xs text-neutral-500 text-center mt-3">
